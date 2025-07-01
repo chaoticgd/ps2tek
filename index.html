@@ -5052,11 +5052,41 @@ BIOS EE Patches
 The EE kernel is full of bugs, so games have to work around them. Both the official SDK and PS2SDK patch the alarm functions and certain threading functions
 before the main function is executed.<BR>
 <BR>
-<B>Alarm Patches</B><BR>
-Using SetSyscall, games first set syscall 5Ah to be a memcpy with kernel privileges. 5Ah is then used to copy the real patch and EENULL to
-80076000h and 00082000h respectively.<BR>
-The patch contains syscalls FCh-FFh, which are SetAlarm, iSetAlarm, ReleaseAlarm, and iReleaseAlarm respectively. It also patches the interrupt handler
-for timer 3 (INTC12) by setting "syscall" 12Ch, which is out of bounds.<BR>
+<B>System Call Patches</B><BR>
+SetSyscall is used to modify the system call table.<BR>
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD><PRE>
+  Name                Patch      Official   PS2SDK
+  kCopy [1]           all        5Ah (90)   5Ah (90)
+  GetEntryAddress [2] all        5Bh (91)   5Bh (91)
+  SetOsdConfigParam   osdsrc     4Ah (74)   4Ah (74)
+  GetOsdConfigParam   osdsrc     4Bh (75)   4Bh (75)
+  SetOsdConfigParam2  osdsrc     6Eh (110)  6Eh (110)
+  GetOsdConfigParam2  osdsrc     6Fh (111)  6Fh (111)
+  _kExitTLBHandler    tlbsrc     <B>54h (84)   N/A</B>
+  PutTLBEntry         tlbsrc     55h (85)   55h (85)
+  SetTLBEntry         tlbsrc     56h (86)   56h (86)
+  GetTLBEntry         tlbsrc     57h (87)   57h (87)
+  ProbeTLBEntry       tlbsrc     58h (88)   58h (88)
+  ExpandScratchPad    tlbsrc     59h (89)   59h (89)
+  SetAlarm            srcfile    FCh (252)  FCh (252)
+  iSetAlarm           srcfile    <B>FEh (254)  FDh (253)</B>
+  ReleaseAlarm        srcfile    <B>FDh (253)  FEh (254)</B>
+  iReleaseAlarm       srcfile    FFh (255)  FFh (255)
+  Intc12Handler [3]   srcfile    12Ch (300) 12Ch (300)
+  ResumeIntrDispatch  srcfile    8h (8)     8h (8)
+</TD></TR></TABLE>
+[1] A memcpy with kernel privileges. Used to copy the patches into place.<BR>
+[2] Set to point to the function at the beginning of each patch before loading them, allowing the patch to provide its own addresses for the new system calls.<BR>
+[3] This is the interrupt handler for timer 3 rather than a system call. SetSyscall is used to write out of bounds.<BR>
+<BR>
+The patches are loaded at the following addresses:<BR>
+<TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0><TR><TD><PRE>
+  Patch               Address
+  eenull              00082000h
+  osdsrc              80074000h
+  tlbsrc              80075000h
+  srcfile             80076000h
+</TD></TR></TABLE>
 <BR>
 <B>Threading Patches</B><BR>
 iWakeupThread and iSuspendThread do not work properly when used on the currently executing thread, or its priority in the case
